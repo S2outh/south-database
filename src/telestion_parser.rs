@@ -1,5 +1,6 @@
 
-use serde_cbor::Value;
+use ciborium::Value;
+use ciborium_io::Read;
 
 use questdb::ingress::{
     Buffer, TimestampMicros
@@ -12,7 +13,8 @@ fn add_value(buffer: &mut Buffer, name: &str, value: &Value) -> Result<(), Parsi
                 .map_err(|e| ParsingError::QuestDBErr(e))?;
         },
         Value::Integer(n) => {
-            buffer.column_i64(name, *n as i64)
+            buffer.column_i64(name, (*n).try_into()
+                .map_err(|_| ParsingError::UnsupportedType)?)
                 .map_err(|e| ParsingError::QuestDBErr(e))?;
         },
         Value::Float(n) => {
@@ -30,10 +32,10 @@ fn add_value(buffer: &mut Buffer, name: &str, value: &Value) -> Result<(), Parsi
         },
         Value::Map(o) => {
             for entry in o.iter() {
-                let Value::Text(key) = entry.0 else {
+                let Value::Text(key) = &entry.0 else {
                     return Err(ParsingError::UnsupportedFormat)
                 };
-                add_value(buffer, &format!("{}_{}", name, key), entry.1)?;
+                add_value(buffer, &format!("{}_{}", name, key), &entry.1)?;
             }
         },
         _ => return Err(ParsingError::UnsupportedType),
@@ -47,7 +49,7 @@ pub enum ParsingError {
     UnsupportedFormat,
     UnsupportedType,
     QuestDBErr(questdb::Error),
-    SerdeErr(serde_cbor::Error),
+    SerdeErr(ciborium::de::Error<<&'static [u8] as Read>::Error>),
 }
 
 #[derive(serde::Deserialize)]
@@ -58,18 +60,18 @@ struct TelestionMsg {
 
 pub fn to_buffer(topic: &str, content: &[u8]) -> Result<Buffer, ParsingError> {
     
-    let msg = serde_cbor::from_slice::<TelestionMsg>(content).map_err(|e| ParsingError::SerdeErr(e))?;
+    let msg: TelestionMsg = ciborium::from_reader(content).map_err(ParsingError::SerdeErr)?;
     let topic_tail = topic.split(".").last().unwrap();
 
     let mut buffer = Buffer::new();
 
-    buffer.table(topic).map_err(|e| ParsingError::QuestDBErr(e))?;
+    buffer.table(topic).map_err(ParsingError::QuestDBErr)?;
 
     add_value(&mut buffer, &topic_tail, &msg.value)?;
 
     const MILLIS: i64 = 1000;
     buffer.at(TimestampMicros::new(msg.timestamp * MILLIS))
-        .map_err(|e| ParsingError::QuestDBErr(e))?;
+        .map_err(ParsingError::QuestDBErr)?;
 
     Ok(buffer)
 }
