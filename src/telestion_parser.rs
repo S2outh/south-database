@@ -10,20 +10,26 @@ fn add_value(buffer: &mut Buffer, name: &str, value: &Value) -> Result<(), Parsi
     match value {
         Value::Bool(b) => {
             buffer.column_bool(name, b.to_owned())
-                .map_err(|e| ParsingError::QuestDBErr(e))?;
+                .map_err(ParsingError::QuestDBErr)?;
         },
         Value::Integer(n) => {
             buffer.column_i64(name, (*n).try_into()
                 .map_err(|_| ParsingError::UnsupportedType)?)
-                .map_err(|e| ParsingError::QuestDBErr(e))?;
+                .map_err(ParsingError::QuestDBErr)?;
         },
         Value::Float(n) => {
             buffer.column_f64(name, *n)
-                .map_err(|e| ParsingError::QuestDBErr(e))?;
+                .map_err(ParsingError::QuestDBErr)?;
         },
         Value::Text(s) => {
             buffer.column_str(name, s)
-                .map_err(|e| ParsingError::QuestDBErr(e))?;
+                .map_err(ParsingError::QuestDBErr)?;
+        },
+        Value::Bytes(b) => {
+            for (i, entry) in b.iter().enumerate() {
+                buffer.column_i64(&format!("{}_{}", name, i) as &str, (*entry).into())
+                    .map_err(ParsingError::QuestDBErr)?;
+            }
         },
         Value::Array(a) => {
             for (i, entry) in a.iter().enumerate() {
