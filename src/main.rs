@@ -1,4 +1,4 @@
-use database::config::DBConfig;
+use nats_questdb_ingress::config::DBConfig;
 use simple_config::Config;
 
 #[tokio::main]
@@ -7,6 +7,6 @@ async fn main() {
     config.parse_file("db.conf").expect("could not parse config file");
     config.parse_cli().expect("could not parse cli args");
 
-    database::run(config).await
+    nats_questdb_ingress::run(config).await
         .expect("database service finished with non zero exit code");
 }
