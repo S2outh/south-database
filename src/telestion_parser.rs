@@ -75,9 +75,10 @@ pub fn to_buffer(topic: &str, content: &[u8]) -> Result<Buffer, ParsingError> {
 
     add_value(&mut buffer, &topic_tail, &msg.value)?;
 
-    const MILLIS: i64 = 1000;
-    buffer.at(TimestampMicros::new(msg.timestamp * MILLIS))
+    buffer.at(TimestampMicros::new(msg.timestamp))
         .map_err(ParsingError::QuestDBErr)?;
+
+    println!("[INFO] parsed topic: {}", topic);
 
     Ok(buffer)
 }
