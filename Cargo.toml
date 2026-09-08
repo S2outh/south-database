@@ -12,3 +12,7 @@ futures = "0.3.31"
 serde = { version = "1.0.218", features = ["derive"] }
 ciborium = { version = "0.2.2" }
 ciborium-io = { version = "0.2.2", features = ["std"] }
+thiserror = "2.0.20"
+anyhow = "1.0.104"
+log = "0.4.34"
+env_logger = "0.11.11"

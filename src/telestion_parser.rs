@@ -1,7 +1,7 @@
 use ciborium::Value;
 use ciborium_io::Read;
 
-use std::{fmt, error};
+use thiserror::Error;
 
 use questdb::ingress::{
     Buffer, TimestampMicros
@@ -47,32 +47,17 @@ fn add_value(buffer: &mut Buffer, name: &str, value: &Value) -> Result<()> {
 
 type CiboriumErr = ciborium::de::Error<<&'static [u8] as Read>::Error>;
 
-#[derive(Debug)]
-#[allow(dead_code)]
+#[derive(Debug, Error)]
 pub enum ParsingError {
+    #[error("Unsupported format")]
     UnsupportedFormat,
+    #[error("Unsupported type")]
     UnsupportedType,
-    QuestDBErr(questdb::Error),
-    SerdeErr(CiboriumErr),
+    #[error("DB error: {0}")]
+    QuestDBErr(#[from] questdb::Error),
+    #[error("Deserialization error: {0}")]
+    SerdeErr(#[from] CiboriumErr),
 }
-
-impl fmt::Display for ParsingError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::UnsupportedFormat => write!(f, "Unsupported format"),
-            Self::UnsupportedType => write!(f, "Unsupported format"),
-            Self::QuestDBErr(e) => write!(f, "DB error: {}", e),
-            Self::SerdeErr(e) => write!(f, "Deserialization error: {}", e),
-        }
-    }
-}
-
-from_inner_err!(ParsingError,
-    QuestDBErr, questdb::Error,
-    SerdeErr, CiboriumErr,
-);
-
-impl error::Error for ParsingError {}
 
 type Result<T> = std::result::Result<T, ParsingError>;
 
@@ -94,8 +79,6 @@ pub fn to_buffer(topic: &str, content: &[u8]) -> Result<Buffer> {
     add_value(&mut buffer, &topic_tail, &msg.value)?;
 
     buffer.at(TimestampMicros::new(msg.timestamp))?;
-
-    println!("[INFO] parsed topic: {}", topic);
 
     Ok(buffer)
 }
