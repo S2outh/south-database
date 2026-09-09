@@ -5,10 +5,14 @@
     nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
     systems.url = "github:nix-systems/default";
     flake-parts.url = "github:hercules-ci/flake-parts";
-    fenix.url = "github:nix-community/fenix/monthly";
+    fenix = {
+      url = "github:nix-community/fenix/monthly";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
     naersk = {
       url = "github:nix-community/naersk";
       inputs.fenix.follows = "fenix";
+      inputs.nixpkgs.follows = "nixpkgs";
     };
   };
 
