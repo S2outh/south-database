@@ -10,7 +10,7 @@ use questdb::ingress::{
     Protocol, Sender, SenderBuilder
 };
 
-mod telestion_parser;
+mod telemetry_parser;
 pub mod config;
 
 const QUESTDB_PORT: u16 = 9000;
@@ -48,7 +48,7 @@ async fn subscriber_loop(mut subscription: Subscriber, mut database_client: Send
     while let Some(msg) = subscription.next().await {
         
         log::debug!("received msg with subject: {}", msg.subject);
-        match telestion_parser::to_buffer(msg.subject.as_str(), msg.payload.as_ref()) {
+        match telemetry_parser::to_buffer(msg.subject.as_str(), msg.payload.as_ref()) {
             Ok(mut buffer) => database_client.flush(&mut buffer)?,
             Err(e) => log::error!("parsing incoming message: {:?}", e),
         }

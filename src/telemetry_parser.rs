@@ -1,3 +1,5 @@
+use std::time::SystemTime;
+
 use ciborium::Value;
 use ciborium_io::Read;
 
@@ -62,24 +64,27 @@ pub enum ParsingError {
 type Result<T> = std::result::Result<T, ParsingError>;
 
 #[derive(serde::Deserialize)]
-struct TelestionMsg {
+struct TelemetryMsg {
     timestamp: i64,
     value: Value,
 }
 
 pub fn to_buffer(topic: &str, content: &[u8]) -> Result<Buffer> {
     
-    let msg: TelestionMsg = ciborium::from_reader(content)?;
     let topic_tail = topic.split(".").last().unwrap();
-
     let mut buffer = Buffer::new();
-
     buffer.table(topic)?;
 
-    add_value(&mut buffer, &topic_tail, &msg.value)?;
-
-    buffer.at(TimestampMicros::new(msg.timestamp))?;
-
+    if let Ok(msg) = ciborium::from_reader::<TelemetryMsg, _>(content) {
+        // Prioritize timestamp from telemetry msg if possible
+        add_value(&mut buffer, &topic_tail, &msg.value)?;
+        buffer.at(TimestampMicros::new(msg.timestamp))?;
+    } else {
+        // Else just deserialize as completely opaque value
+        let msg = ciborium::from_reader::<Value, _>(content)?;
+        add_value(&mut buffer, &topic_tail, &msg)?;
+        buffer.at(TimestampMicros::from_systemtime(SystemTime::now())?)?;
+    }
     Ok(buffer)
 }
 
